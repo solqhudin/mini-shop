@@ -49,7 +49,7 @@
     <div id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
 
     <!-- Diagnostics (ซ่อนอยู่จนกดปุ่ม) -->
-    <div id="diag" class="hidden mt-8">
+    <!-- <div id="diag" class="hidden mt-8">
       <div class="bg-white rounded-3xl shadow p-4">
         <div class="flex items-center justify-between">
           <h3 class="text-lg font-semibold">Diagnostics</h3>
@@ -58,7 +58,7 @@
         <p class="text-sm text-slate-600 mt-2">ตรวจเส้นทาง API อัตโนมัติและแสดงผลลัพธ์แต่ละ candidate</p>
         <pre id="diagOut" class="mt-3 bg-slate-900 text-slate-100 rounded-2xl p-3 overflow-x-auto text-xs"></pre>
       </div>
-    </div>
+    </div> -->
   </main>
 
   <!-- Cart Drawer -->
@@ -461,26 +461,26 @@
     });
 
     // ---------- diagnostics UI ----------
-    function renderDiagnostics(path, details) {
-      const lines = [
-        `Path ทดสอบ: ${path}`,
-        'Candidates ที่ลอง (สถานะ/ตัวอย่างเนื้อหา):',
-        ...details.map(d => `- ${d.url} -> ${d.status}\n  ${String(d.body||'').replace(/\n/g,' ').slice(0,140)}`)
-      ];
-      diagOut.textContent = lines.join('\n');
-      diag.classList.remove('hidden');
-    }
-    el('btnDiag').addEventListener('click', async () => {
-      try {
-        await loadProducts();
-      } catch {}
-    });
-    el('btnDiag2').addEventListener('click', async () => {
-      try {
-        await loadProducts();
-      } catch {}
-    });
-    el('btnDiagClose').addEventListener('click', () => diag.classList.add('hidden'));
+    // function renderDiagnostics(path, details) {
+    //   const lines = [
+    //     `Path ทดสอบ: ${path}`,
+    //     'Candidates ที่ลอง (สถานะ/ตัวอย่างเนื้อหา):',
+    //     ...details.map(d => `- ${d.url} -> ${d.status}\n  ${String(d.body||'').replace(/\n/g,' ').slice(0,140)}`)
+    //   ];
+    //   diagOut.textContent = lines.join('\n');
+    //   diag.classList.remove('hidden');
+    // }
+    // el('btnDiag').addEventListener('click', async () => {
+    //   try {
+    //     await loadProducts();
+    //   } catch {}
+    // });
+    // el('btnDiag2').addEventListener('click', async () => {
+    //   try {
+    //     await loadProducts();
+    //   } catch {}
+    // });
+    // el('btnDiagClose').addEventListener('click', () => diag.classList.add('hidden'));
 
     // boot
     loadProducts();
