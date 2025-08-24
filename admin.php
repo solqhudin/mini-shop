@@ -188,7 +188,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
       <td class="p-3">${o.created_at}</td>
       <td class="p-3">${o.code}</td>
       <td class="p-3">${o.customer_name}</td>
-      <td class="p-3 text-right" data-total>${fmtSatang(o.total_satang)}</td>
+      <td class="p-3 text-right" data-total>${fmtSatang(o.total_baht)}</td>
       <td class="p-3">
         <select class="px-2 py-1 rounded border" data-oid="${o.id}" data-status>
           ${['pending','paid','shipped','completed','cancelled'].map(st=>`<option value="${st}" ${o.status===st?'selected':''}>${st}</option>`).join('')}
@@ -228,7 +228,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                 const d = await r.json();
                 if (!r.ok || !d?.items) return;
                 const sumSatang = (d.items || []).reduce((acc, it) => {
-                    const unit = toSatang(it.price_satang);
+                    const unit = toSatang(it.price_baht);
                     const line = it.line_total != null ? toSatang(it.line_total) : unit * (Number(it.qty) || 0);
                     return acc + line;
                 }, 0);
@@ -259,7 +259,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                     return;
                 }
                 const sumSatang = (j.items || []).reduce((acc, it) => {
-                    const unit = toSatang(it.price_satang);
+                    const unit = toSatang(it.price_baht);
                     const line = it.line_total != null ? toSatang(it.line_total) : unit * (Number(it.qty) || 0);
                     return acc + line;
                 }, 0);
@@ -361,7 +361,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                 tr.innerHTML = `<td class="p-3">${p.id}</td>
                     <td class="p-3"><input class="w-48 px-2 py-1 rounded border" value="${escapeHtml(p.name)}" data-k="name"></td>
                     <td class="p-3"><textarea class="w-64 h-16 px-2 py-1 rounded border" data-k="description">${escapeHtml(p.description||'')}</textarea></td>
-                    <td class="p-3"><input type="number" class="w-28 px-2 py-1 rounded border" value="${p.price_satang}" data-k="price_satang"></td>
+                    <td class="p-3"><input type="number" class="w-28 px-2 py-1 rounded border" value="${p.price_baht}" data-k="price_baht"></td>
                     <td class="p-3"><input type="number" class="w-20 px-2 py-1 rounded border" value="${p.stock}" data-k="stock"></td>
                     <td class="p-3"><input class="w-64 px-2 py-1 rounded border" value="${escapeHtml(p.image_url||'')}" data-k="image_url"></td>
                     <td class="p-3"><select class="px-2 py-1 rounded border" data-k="is_active"><option value="1" ${p.is_active==1?'selected':''}>แสดง</option><option value="0" ${p.is_active==0?'selected':''}>ซ่อน</option></select></td>
@@ -379,7 +379,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                 id
             };
             tr.querySelectorAll('[data-k]').forEach(i => payload[i.dataset.k] = i.value);
-            payload.price_satang = parseInt(payload.price_satang || 0, 10);
+            payload.price_baht = parseInt(payload.price_baht || 0, 10);
             payload.stock = parseInt(payload.stock || 0, 10);
             payload.is_active = parseInt(payload.is_active || 1, 10);
             const r = await fetch('./api/admin_products.php', {
@@ -418,7 +418,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
             const p = {
                 action: 'create',
                 name: document.getElementById('n_name').value.trim(),
-                price_satang: parseInt(document.getElementById('n_price').value || 0, 10),
+                price_baht: parseInt(document.getElementById('n_price').value || 0, 10),
                 stock: parseInt(document.getElementById('n_stock').value || 0, 10),
                 image_url: document.getElementById('n_image').value.trim(),
                 is_active: parseInt(document.getElementById('n_active').value || 1, 10),
@@ -458,7 +458,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
             r.innerHTML = '';
             let sum = 0;
             for (const it of items) {
-                const unitSatang = toSatang(it.price_satang);
+                const unitSatang = toSatang(it.price_baht);
                 const lineSatang = it.line_total != null ? toSatang(it.line_total) : unitSatang * (Number(it.qty) || 0);
                 sum += lineSatang;
                 const tr = document.createElement('tr');

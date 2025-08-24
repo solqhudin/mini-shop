@@ -7,7 +7,7 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'GET') {
 require_admin_json();
 header('Content-Type: application/json; charset=utf-8');
-$st = $pdo->query('SELECT id,name,description,price_satang,image_url,stock,is_active FROM products ORDER BY id DESC');
+$st = $pdo->query('SELECT id,name,description,price_baht,image_url,stock,is_active FROM products ORDER BY id DESC');
 echo json_encode($st->fetchAll(), JSON_UNESCAPED_UNICODE); exit;
 }
 
@@ -20,9 +20,9 @@ $act = $in['action'] ?? '';
 try {
 if ($act === 'create') {
 $name = trim($in['name'] ?? ''); if ($name==='') throw new Exception('name required');
-$desc = $in['description'] ?? null; $price = (int)($in['price_satang'] ?? 0); $stock = (int)($in['stock'] ?? 0);
+$desc = $in['description'] ?? null; $price = (int)($in['price_baht'] ?? 0); $stock = (int)($in['stock'] ?? 0);
 $img = trim($in['image_url'] ?? ''); $active = (int)($in['is_active'] ?? 1);
-$st = $pdo->prepare('INSERT INTO products (name,description,price_satang,image_url,stock,is_active) VALUES (?,?,?,?,?,?)');
+$st = $pdo->prepare('INSERT INTO products (name,description,price_baht,image_url,stock,is_active) VALUES (?,?,?,?,?,?)');
 $st->execute([$name,$desc,$price,$img,$stock,$active]);
 echo json_encode(['ok'=>true,'id'=>(int)$pdo->lastInsertId()]); exit;
 }
@@ -30,9 +30,9 @@ echo json_encode(['ok'=>true,'id'=>(int)$pdo->lastInsertId()]); exit;
 
 if ($act === 'update') {
 $id = (int)($in['id'] ?? 0); if ($id<=0) throw new Exception('missing id');
-$name = trim($in['name'] ?? ''); $desc = $in['description'] ?? null; $price = (int)($in['price_satang'] ?? 0);
+$name = trim($in['name'] ?? ''); $desc = $in['description'] ?? null; $price = (int)($in['price_baht'] ?? 0);
 $stock = (int)($in['stock'] ?? 0); $img = trim($in['image_url'] ?? ''); $active = (int)($in['is_active'] ?? 1);
-$st = $pdo->prepare('UPDATE products SET name=?,description=?,price_satang=?,image_url=?,stock=?,is_active=? WHERE id=?');
+$st = $pdo->prepare('UPDATE products SET name=?,description=?,price_baht=?,image_url=?,stock=?,is_active=? WHERE id=?');
 $st->execute([$name,$desc,$price,$img,$stock,$active,$id]);
 echo json_encode(['ok'=>true]); exit;
 }

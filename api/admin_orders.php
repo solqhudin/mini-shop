@@ -10,14 +10,14 @@ if ($method === 'GET') {
   // ถ้าใส่ ?id= จะดึงรายละเอียดคำสั่งซื้อ + รายการสินค้า
   $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
   if ($id > 0) {
-    $o = $pdo->prepare('SELECT id, code, customer_name, phone, address, total_satang, status, created_at FROM orders WHERE id = ?');
+    $o = $pdo->prepare('SELECT id, code, customer_name, phone, address, total_baht, status, created_at FROM orders WHERE id = ?');
     $o->execute([$id]);
     $order = $o->fetch();
     if (!$order) { http_response_code(404); echo json_encode(['message'=>'not found']); exit; }
 
     $it = $pdo->prepare('
-      SELECT oi.product_id, p.name, oi.qty, oi.price_satang,
-             (oi.qty * oi.price_satang) AS line_total
+      SELECT oi.product_id, p.name, oi.qty, oi.price_baht,
+             (oi.qty * oi.price_baht) AS line_total
       FROM order_items oi
       LEFT JOIN products p ON p.id = oi.product_id
       WHERE oi.order_id = ?
@@ -44,7 +44,7 @@ if ($method === 'GET') {
   $whereSql = $where ? ('WHERE '.implode(' AND ', $where)) : '';
 
   $sql = "
-    SELECT o.id, o.code, o.customer_name, o.total_satang, o.status, o.created_at,
+    SELECT o.id, o.code, o.customer_name, o.total_baht, o.status, o.created_at,
            COUNT(oi.id) AS item_count
     FROM orders o
     LEFT JOIN order_items oi ON oi.order_id = o.id

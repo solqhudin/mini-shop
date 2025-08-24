@@ -326,7 +326,7 @@
               <h3 class="text-lg font-semibold line-clamp-1">${escapeHtml(p.name||'')}</h3>
             </button>
             <div class="text-right">
-              <div class="text-xl font-bold">${formatPrice(p.price_satang)}</div>
+              <div class="text-xl font-bold">${formatPrice(p.price_baht)}</div>
               <div class="text-xs text-slate-500">สต๊อก: ${p.stock ?? 0}</div>
             </div>
           </div>
@@ -369,7 +369,7 @@
           qty
         }
         of state.cart.values()) {
-        total += toSatang(p.price_satang) * qty;
+        total += toSatang(p.price_baht) * qty;
         count += qty;
         const row = document.createElement('div');
         row.className = 'flex gap-3 items-center p-2 rounded-xl border';
@@ -377,7 +377,7 @@
           <img src="${safeUrl(p.image_url||'')}" class="w-16 h-16 rounded-xl object-cover" onerror="this.src='https://via.placeholder.com/64?text=?'"/>
           <div class="flex-1">
             <div class="font-medium line-clamp-1">${escapeHtml(p.name||'')}</div>
-            <div class="text-slate-500 text-sm">${formatPrice(p.price_satang)} × ${qty}</div>
+            <div class="text-slate-500 text-sm">${formatPrice(p.price_baht)} × ${qty}</div>
           </div>
           <div class="flex items-center gap-2">
             <button class="px-2 py-1 rounded-lg border" data-dec="${p.id}">-</button>
@@ -415,7 +415,7 @@
       el('d_name').textContent = p.name || '';
       el('d_img').src = safeUrl(p.image_url || '');
       el('d_img').alt = p.name || '';
-      el('d_price').textContent = formatPrice(p.price_satang);
+      el('d_price').textContent = formatPrice(p.price_baht);
       el('d_stock').textContent = p.stock ?? 0;
       el('d_desc').textContent = p.description || '';
       detailModal.classList.remove('hidden');
