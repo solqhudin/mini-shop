@@ -38,8 +38,9 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                 <h2 class="text-xl font-semibold mb-4">เพิ่มสินค้าใหม่</h2>
                 <div class="grid md:grid-cols-6 gap-3">
                     <input id="n_name" placeholder="ชื่อสินค้า" class="px-3 py-2 rounded-xl border">
-                    <input id="n_price" placeholder="ราคา (สตางค์)" class="px-3 py-2 rounded-xl border">
-                    <input id="n_stock" placeholder="สต๊อก" class="px-3 py-2 rounded-xl border">
+                    <!-- รับทั้ง 1420 และ 1,420 -->
+                    <input id="n_price" placeholder="ราคา (บาท)" inputmode="decimal" pattern="[0-9,\.]*" class="px-3 py-2 rounded-xl border">
+                    <input id="n_stock" placeholder="สต๊อก" type="number" step="1" class="px-3 py-2 rounded-xl border">
                     <input id="n_image" placeholder="Image URL" class="px-3 py-2 rounded-xl border md:col-span-2">
                     <select id="n_active" class="px-3 py-2 rounded-xl border">
                         <option value="1" selected>แสดง</option>
@@ -64,7 +65,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                             <th class="p-3 text-left">ID</th>
                             <th class="p-3 text-left">ชื่อ</th>
                             <th class="p-3 text-left">รายละเอียด</th>
-                            <th class="p-3 text-left">ราคา (สต.)</th>
+                            <th class="p-3 text-left">ราคา (บาท)</th>
                             <th class="p-3 text-left">สต๊อก</th>
                             <th class="p-3 text-left">รูปภาพ</th>
                             <th class="p-3 text-left">สถานะ</th>
@@ -127,13 +128,14 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
             style: 'currency',
             currency: 'THB'
         });
-
-        // แปลงเป็น "สตางค์": ถ้าน้อยกว่า 1000 ถือว่าเก็บเป็นบาท → คูณ 100 (รองรับข้อมูลเก่า)
-        const toSatang = (v) => {
-            const n = Number(v) || 0;
-            return n >= 1000 ? n : n * 100;
-        };
-        const fmtSatang = (v) => fmtTHB.format(toSatang(v) / 100);
+        const formatBaht = (v) => fmtTHB.format(Number(v) || 0);
+        // ✅ NEW: แปลงสตริงราคาให้เป็นจำนวน "บาท" ที่ถูกต้อง (รับ 1420, 1,420, ฿1,420.00)
+        function parseBaht(val) {
+            const s = String(val ?? '').replace(/[^0-9.\-]/g, '');
+            if (s === '' || s === '-' || s === '.') return 0;
+            const n = Number(s);
+            return Number.isFinite(n) ? Math.round(n) : 0; // เก็บเป็นจำนวนบาท (ปัดทศนิยม)
+        }
 
         const toast = (m, t = 'ok') => {
             const b = document.createElement('div');
@@ -147,9 +149,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
         let O_PAGE = 1,
             O_LIMIT = 20,
             O_TOTAL = 0;
-
-        // cache รายละเอียดออเดอร์เพื่อไม่ยิง API ซ้ำ
-        const ORDER_CACHE = new Map(); // id -> {order, items, sumSatang}
+        const ORDER_CACHE = new Map(); // id -> {order, items, sumBaht}
 
         async function fetchOrders() {
             const s = document.getElementById('o_status').value.trim();
@@ -188,7 +188,7 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
       <td class="p-3">${o.created_at}</td>
       <td class="p-3">${o.code}</td>
       <td class="p-3">${o.customer_name}</td>
-      <td class="p-3 text-right" data-total>${fmtSatang(o.total_satang)}</td>
+      <td class="p-3 text-right" data-total>${formatBaht(o.total_baht)}</td>
       <td class="p-3">
         <select class="px-2 py-1 rounded border" data-oid="${o.id}" data-status>
           ${['pending','paid','shipped','completed','cancelled'].map(st=>`<option value="${st}" ${o.status===st?'selected':''}>${st}</option>`).join('')}
@@ -198,13 +198,10 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
         <button class="px-3 py-1 rounded-xl border" data-view="${o.id}">ดูรายการ (${o.item_count})</button>
       </td>`;
                 tb.appendChild(tr);
-
-                // คำนวณยอดรวมใหม่จากรายการสินค้าเสมอ แล้วอัปเดต cell ยอดรวม
                 recalcAndPatchTotal(o.id).catch(() => {});
             }
             const lastPage = Math.max(1, Math.ceil(O_TOTAL / O_LIMIT));
             info.textContent = `หน้า ${O_PAGE}/${lastPage} — ทั้งหมด ${O_TOTAL} รายการ`;
-
             tb.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => viewOrder(Number(b.dataset.view))));
             tb.querySelectorAll('[data-status]').forEach(sel => sel.addEventListener('change', () => updateOrderStatus(Number(sel.dataset.oid), sel.value)));
         }
@@ -214,7 +211,6 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
             renderOrdersTable(d.data || []);
         }
 
-        // ดึงรายละเอียด → หาผลรวมแบบกันพลาด → อัปเดตช่องยอดรวมของแถว
         async function recalcAndPatchTotal(orderId) {
             let data = ORDER_CACHE.get(orderId);
             if (!data) {
@@ -227,25 +223,25 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                 });
                 const d = await r.json();
                 if (!r.ok || !d?.items) return;
-                const sumSatang = (d.items || []).reduce((acc, it) => {
-                    const unit = toSatang(it.price_satang);
-                    const line = it.line_total != null ? toSatang(it.line_total) : unit * (Number(it.qty) || 0);
+                const sumBaht = (d.items || []).reduce((acc, it) => {
+                    const unit = Number(it.price_baht) || 0;
+                    const line = (it.line_total != null) ? Number(it.line_total) : unit * (Number(it.qty) || 0);
                     return acc + line;
                 }, 0);
                 data = {
                     order: d.order,
                     items: d.items,
-                    sumSatang
+                    sumBaht
                 };
                 ORDER_CACHE.set(orderId, data);
             }
-            const row = document.querySelector(`tr[data-oid="${orderId}"] [data-total]`);
-            if (row) row.textContent = fmtTHB.format((data.sumSatang || 0) / 100);
+            const cell = document.querySelector(`tr[data-oid="${orderId}"] [data-total]`);
+            if (cell) cell.textContent = formatBaht(data.sumBaht || 0);
         }
 
         async function viewOrder(id) {
-            let d = ORDER_CACHE.get(id);
-            if (!d) {
+            let cached = ORDER_CACHE.get(id);
+            if (!cached) {
                 const url = new URL('./api/admin_orders.php', location.href);
                 url.searchParams.set('id', id);
                 const r = await fetch(url, {
@@ -258,19 +254,19 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                     toast(j.message || 'ไม่พบออเดอร์', 'warn');
                     return;
                 }
-                const sumSatang = (j.items || []).reduce((acc, it) => {
-                    const unit = toSatang(it.price_satang);
-                    const line = it.line_total != null ? toSatang(it.line_total) : unit * (Number(it.qty) || 0);
+                const sumBaht = (j.items || []).reduce((acc, it) => {
+                    const unit = Number(it.price_baht) || 0;
+                    const line = (it.line_total != null) ? Number(it.line_total) : unit * (Number(it.qty) || 0);
                     return acc + line;
                 }, 0);
-                d = {
+                cached = {
                     order: j.order,
                     items: j.items,
-                    sumSatang
+                    sumBaht
                 };
-                ORDER_CACHE.set(id, d);
+                ORDER_CACHE.set(id, cached);
             }
-            showOrderModal(d.order, d.items);
+            showOrderModal(cached.order, cached.items);
         }
 
         async function updateOrderStatus(id, status) {
@@ -361,8 +357,9 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                 tr.innerHTML = `<td class="p-3">${p.id}</td>
                     <td class="p-3"><input class="w-48 px-2 py-1 rounded border" value="${escapeHtml(p.name)}" data-k="name"></td>
                     <td class="p-3"><textarea class="w-64 h-16 px-2 py-1 rounded border" data-k="description">${escapeHtml(p.description||'')}</textarea></td>
-                    <td class="p-3"><input type="number" class="w-28 px-2 py-1 rounded border" value="${p.price_satang}" data-k="price_satang"></td>
-                    <td class="p-3"><input type="number" class="w-20 px-2 py-1 rounded border" value="${p.stock}" data-k="stock"></td>
+                    <!-- เปลี่ยนเป็น text + รับคอมมาได้ แต่เราจะ sanitize ตอนส่ง -->
+                    <td class="p-3"><input type="text" inputmode="decimal" pattern="[0-9,\.]*" class="w-28 px-2 py-1 rounded border" value="${p.price_baht}" data-k="price_baht"></td>
+                    <td class="p-3"><input type="number" step="1" class="w-20 px-2 py-1 rounded border" value="${p.stock}" data-k="stock"></td>
                     <td class="p-3"><input class="w-64 px-2 py-1 rounded border" value="${escapeHtml(p.image_url||'')}" data-k="image_url"></td>
                     <td class="p-3"><select class="px-2 py-1 rounded border" data-k="is_active"><option value="1" ${p.is_active==1?'selected':''}>แสดง</option><option value="0" ${p.is_active==0?'selected':''}>ซ่อน</option></select></td>
                     <td class="p-3 text-right"><button class="px-3 py-1 rounded-xl border mr-2" data-act="save">บันทึก</button><button class="px-3 py-1 rounded-xl border" data-act="del">ลบ</button></td>`;
@@ -379,7 +376,8 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
                 id
             };
             tr.querySelectorAll('[data-k]').forEach(i => payload[i.dataset.k] = i.value);
-            payload.price_satang = parseInt(payload.price_satang || 0, 10);
+            // ✅ sanitize ช่องราคาให้รับ 1,420 ได้
+            payload.price_baht = parseBaht(payload.price_baht);
             payload.stock = parseInt(payload.stock || 0, 10);
             payload.is_active = parseInt(payload.is_active || 1, 10);
             const r = await fetch('./api/admin_products.php', {
@@ -418,7 +416,8 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
             const p = {
                 action: 'create',
                 name: document.getElementById('n_name').value.trim(),
-                price_satang: parseInt(document.getElementById('n_price').value || 0, 10),
+                // ✅ sanitize ราคาก่อนส่ง (แก้อาการ "ใส่ 1,420 แล้วกลายเป็น 1.00")
+                price_baht: parseBaht(document.getElementById('n_price').value),
                 stock: parseInt(document.getElementById('n_stock').value || 0, 10),
                 image_url: document.getElementById('n_image').value.trim(),
                 is_active: parseInt(document.getElementById('n_active').value || 1, 10),
@@ -456,22 +455,22 @@ if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
     <div class="text-slate-500">${(order.address||'').replace(/\n/g,' ')}</div>
     <div class="text-slate-500">เวลา: ${order.created_at}</div>`;
             r.innerHTML = '';
-            let sum = 0;
+            let sum = 0; // หน่วย: บาท
             for (const it of items) {
-                const unitSatang = toSatang(it.price_satang);
-                const lineSatang = it.line_total != null ? toSatang(it.line_total) : unitSatang * (Number(it.qty) || 0);
-                sum += lineSatang;
+                const unitBaht = Number(it.price_baht) || 0;
+                const lineBaht = (it.line_total != null) ? Number(it.line_total) : unitBaht * (Number(it.qty) || 0);
+                sum += lineBaht;
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
       <td class="p-2">${it.name||('Product #'+it.product_id)}</td>
       <td class="p-2 text-right">${it.qty}</td>
-      <td class="p-2 text-right">${fmtTHB.format(unitSatang/100)}</td>
-      <td class="p-2 text-right">${fmtTHB.format(lineSatang/100)}</td>`;
+      <td class="p-2 text-right">${formatBaht(unitBaht)}</td>
+      <td class="p-2 text-right">${formatBaht(lineBaht)}</td>`;
                 r.appendChild(tr);
             }
             const tr = document.createElement('tr');
             tr.innerHTML = `<td class="p-2 text-right font-medium" colspan="3">รวมทั้งสิ้น</td>
-                  <td class="p-2 text-right font-bold">${fmtTHB.format(sum/100)}</td>`;
+                  <td class="p-2 text-right font-bold">${formatBaht(sum)}</td>`;
             r.appendChild(tr);
             orderModal.classList.remove('hidden');
         }

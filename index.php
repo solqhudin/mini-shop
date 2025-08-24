@@ -47,18 +47,6 @@
       <h2 id="btnDiag2" class="text-2xl font-semibold">สินค้า</h2>
     </div>
     <div id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
-
-    <!-- Diagnostics (ซ่อนอยู่จนกดปุ่ม) -->
-    <!-- <div id="diag" class="hidden mt-8">
-      <div class="bg-white rounded-3xl shadow p-4">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold">Diagnostics</h3>
-          <button id="btnDiagClose" class="px-3 py-1 rounded-xl border">ปิด</button>
-        </div>
-        <p class="text-sm text-slate-600 mt-2">ตรวจเส้นทาง API อัตโนมัติและแสดงผลลัพธ์แต่ละ candidate</p>
-        <pre id="diagOut" class="mt-3 bg-slate-900 text-slate-100 rounded-2xl p-3 overflow-x-auto text-xs"></pre>
-      </div>
-    </div> -->
   </main>
 
   <!-- Cart Drawer -->
@@ -155,20 +143,10 @@
     const cartTotal = el('cartTotal');
     const cartCount = el('cartCount');
     const toast = el('toast');
-    const diag = el('diag');
-    const diagOut = el('diagOut');
     el('year').textContent = new Date().getFullYear();
 
-    // ราคา: รองรับทั้งหน่วย "บาท" หรือ "สตางค์"
-    const toSatang = v => {
-      const n = Number(v) || 0;
-      return n >= 1000 ? n : n * 100;
-    };
-    const formatPrice = v => {
-      const n = Number(v) || 0;
-      const baht = n >= 1000 ? n / 100 : n;
-      return fmtTHB.format(baht);
-    };
+    // 👉 เก็บราคาเป็น "บาท"
+    const formatPriceBaht = (v) => fmtTHB.format(Number(v) || 0);
 
     const escapeHtml = (str = '') => String(str).replace(/[&<>"']/g, m => ({
       "&": "&amp;",
@@ -179,7 +157,7 @@
     } [m]));
     const safeUrl = (u = '') => /^https?:\/\//i.test(u) ? u : '#';
 
-    // ✅ FIX: พิมพ์ selector ผิด ทำให้สคริปต์พัง
+    // อ่านค่า API base จาก meta (ถ้ามี)
     const META_API_BASE = (document.querySelector('meta[name="api-base"]')?.content || '').trim();
 
     function unique(arr) {
@@ -194,7 +172,12 @@
       const dir = pathname.endsWith('/') ? pathname : pathname.replace(/[^/]+$/, '/');
       const firstSeg = '/' + (pathname.split('/').filter(Boolean)[0] || '') + '/';
       const fromMeta = META_API_BASE ? new URL(path, META_API_BASE.endsWith('/') ? META_API_BASE : META_API_BASE + '/').href : null;
-      return unique([fromMeta, new URL(`api/${path}`, origin + dir).href, new URL(`api/${path}`, origin + firstSeg).href, new URL(`/api/${path}`, origin).href].filter(Boolean));
+      return unique([
+        fromMeta,
+        new URL(`api/${path}`, origin + dir).href,
+        new URL(`api/${path}`, origin + firstSeg).href,
+        new URL(`/api/${path}`, origin).href
+      ].filter(Boolean));
     }
 
     async function fetchJSONFromCandidates(path, options = {}) {
@@ -248,11 +231,14 @@
     function showToast(msg, type = 'ok') {
       toast.className = 'fixed top-4 right-4 z-50';
       const box = document.createElement('div');
-      box.className = `mb-2 px-4 py-3 rounded-2xl shadow text-white ${type==='ok'?'bg-emerald-600':'bg-amber-600'}`;
+      box.className = `mb-2 px-4 py-3 rounded-2xl shadow text-white ${type==='ok' ? 'bg-emerald-600' : 'bg-amber-600'}`;
       box.textContent = msg;
       toast.appendChild(box);
       setTimeout(() => box.remove(), 2200);
     }
+
+    // no-op diagnostics เพื่อกัน error หากมีการเรียกใช้
+    function renderDiagnostics() {}
 
     // ---------- drawers & modals ----------
     el('btnCart').addEventListener('click', () => drawer.classList.remove('translate-x-full'));
@@ -326,7 +312,7 @@
               <h3 class="text-lg font-semibold line-clamp-1">${escapeHtml(p.name||'')}</h3>
             </button>
             <div class="text-right">
-              <div class="text-xl font-bold">${formatPrice(p.price_satang)}</div>
+              <div class="text-xl font-bold">${formatPriceBaht(p.price_baht)}</div>
               <div class="text-xs text-slate-500">สต๊อก: ${p.stock ?? 0}</div>
             </div>
           </div>
@@ -369,7 +355,7 @@
           qty
         }
         of state.cart.values()) {
-        total += toSatang(p.price_satang) * qty;
+        total += (Number(p.price_baht) || 0) * qty; // ✅ คิดยอดรวมหน่วย "บาท"
         count += qty;
         const row = document.createElement('div');
         row.className = 'flex gap-3 items-center p-2 rounded-xl border';
@@ -377,7 +363,7 @@
           <img src="${safeUrl(p.image_url||'')}" class="w-16 h-16 rounded-xl object-cover" onerror="this.src='https://via.placeholder.com/64?text=?'"/>
           <div class="flex-1">
             <div class="font-medium line-clamp-1">${escapeHtml(p.name||'')}</div>
-            <div class="text-slate-500 text-sm">${formatPrice(p.price_satang)} × ${qty}</div>
+            <div class="text-slate-500 text-sm">${formatPriceBaht(p.price_baht)} × ${qty}</div>
           </div>
           <div class="flex items-center gap-2">
             <button class="px-2 py-1 rounded-lg border" data-dec="${p.id}">-</button>
@@ -386,7 +372,7 @@
             <button class="ml-2 p-2 rounded-lg hover:bg-slate-100" data-del="${p.id}">ยกเลิก</button>`;
         cartItems.appendChild(row);
       }
-      cartTotal.textContent = fmtTHB.format(total / 100);
+      cartTotal.textContent = formatPriceBaht(total);
       cartCount.textContent = count;
       cartItems.querySelectorAll('[data-inc]').forEach(b => b.addEventListener('click', () => changeQty(Number(b.dataset.inc), +1)));
       cartItems.querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => changeQty(Number(b.dataset.dec), -1)));
@@ -415,7 +401,7 @@
       el('d_name').textContent = p.name || '';
       el('d_img').src = safeUrl(p.image_url || '');
       el('d_img').alt = p.name || '';
-      el('d_price').textContent = formatPrice(p.price_satang);
+      el('d_price').textContent = formatPriceBaht(p.price_baht); // ✅ แสดงราคาเป็นบาท
       el('d_stock').textContent = p.stock ?? 0;
       el('d_desc').textContent = p.description || '';
       detailModal.classList.remove('hidden');
@@ -459,28 +445,6 @@
         renderDiagnostics('orders.php', err.details || []);
       }
     });
-
-    // ---------- diagnostics UI ----------
-    // function renderDiagnostics(path, details) {
-    //   const lines = [
-    //     `Path ทดสอบ: ${path}`,
-    //     'Candidates ที่ลอง (สถานะ/ตัวอย่างเนื้อหา):',
-    //     ...details.map(d => `- ${d.url} -> ${d.status}\n  ${String(d.body||'').replace(/\n/g,' ').slice(0,140)}`)
-    //   ];
-    //   diagOut.textContent = lines.join('\n');
-    //   diag.classList.remove('hidden');
-    // }
-    // el('btnDiag').addEventListener('click', async () => {
-    //   try {
-    //     await loadProducts();
-    //   } catch {}
-    // });
-    // el('btnDiag2').addEventListener('click', async () => {
-    //   try {
-    //     await loadProducts();
-    //   } catch {}
-    // });
-    // el('btnDiagClose').addEventListener('click', () => diag.classList.add('hidden'));
 
     // boot
     loadProducts();
